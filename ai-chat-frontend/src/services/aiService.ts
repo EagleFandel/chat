@@ -1,14 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server';
+// Infini AI服务配置
+const INFINI_AI_BASE_URL = import.meta.env.VITE_INFINI_AI_BASE_URL || 'https://cloud.infini-ai.com/maas/v1';
+const INFINI_AI_API_KEY = import.meta.env.VITE_INFINI_AI_API_KEY;
+const INFINI_AI_MODEL = import.meta.env.VITE_INFINI_AI_MODEL || 'deepseek-v3.2-exp';
 
-// Infini AI API配置
-const INFINI_AI_BASE_URL = process.env.INFINI_AI_BASE_URL || 'https://cloud.infini-ai.com/maas/v1';
-const INFINI_AI_API_KEY = process.env.INFINI_AI_API_KEY;
-const INFINI_AI_MODEL = process.env.INFINI_AI_MODEL || 'deepseek-v3.2-exp';
+export interface AIMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface AIResponse {
+  message: string;
+  timestamp: string;
+}
 
 // 调用Infini AI API
-async function generateAIResponse(message: string): Promise<string> {
+export async function callInfiniAI(message: string): Promise<string> {
   if (!INFINI_AI_API_KEY) {
-    throw new Error('INFINI_AI_API_KEY 环境变量未设置');
+    throw new Error('VITE_INFINI_AI_API_KEY 环境变量未设置');
   }
 
   const url = `${INFINI_AI_BASE_URL}/chat/completions`;
@@ -50,8 +58,8 @@ async function generateAIResponse(message: string): Promise<string> {
   }
 }
 
-// 备用模拟响应（当API不可用时）
-async function generateFallbackResponse(message: string): Promise<string> {
+// 备用模拟响应
+export async function generateFallbackResponse(message: string): Promise<string> {
   // 模拟网络延迟
   await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
   
@@ -81,46 +89,21 @@ console.log(greet('World'));
   return responses[Math.floor(Math.random() * responses.length)];
 }
 
-export async function POST(request: NextRequest) {
+// 主要的AI响应函数
+export async function generateAIResponse(message: string): Promise<AIResponse> {
+  let responseMessage: string;
+  
   try {
-    const { message } = await request.json();
-    
-    if (!message || typeof message !== 'string' || message.trim().length === 0) {
-      return NextResponse.json(
-        { error: '消息内容不能为空' },
-        { status: 400 }
-      );
-    }
-    
-    let response: string;
-    
-    try {
-      // 尝试调用Infini AI API
-      response = await generateAIResponse(message.trim());
-    } catch (error) {
-      console.warn('Infini AI API不可用，使用备用响应:', error);
-      // 如果API调用失败，使用备用响应
-      response = await generateFallbackResponse(message.trim());
-    }
-    
-    return NextResponse.json({
-      message: response,
-      timestamp: new Date().toISOString(),
-    });
-    
+    // 尝试调用Infini AI API
+    responseMessage = await callInfiniAI(message);
   } catch (error) {
-    console.error('Chat API error:', error);
-    return NextResponse.json(
-      { error: '服务器内部错误' },
-      { status: 500 }
-    );
+    console.warn('Infini AI API不可用，使用备用响应:', error);
+    // 如果API调用失败，使用备用响应
+    responseMessage = await generateFallbackResponse(message);
   }
-}
-
-export async function GET() {
-  return NextResponse.json({
-    status: 'ok',
-    message: 'AI聊天API正在运行',
+  
+  return {
+    message: responseMessage,
     timestamp: new Date().toISOString(),
-  });
+  };
 }

@@ -2,42 +2,16 @@ import React, { createContext, useContext, useReducer, useCallback, useEffect } 
 import type { ChatContextType } from '../types';
 import { chatReducer, initialChatState } from './useChatReducer';
 import { isValidMessageContent } from '../utils/validation';
-import { delay } from '../utils/helpers';
+import { generateAIResponse } from '../services/aiService';
 
 // 创建上下文
 const ChatContext = createContext<ChatContextType | null>(null);
 
-// 模拟AI服务 - 用于MVP版本
-const mockAIService = {
+// AI服务接口
+const aiService = {
   async sendMessage(message: string): Promise<string> {
-    // 模拟网络延迟
-    await delay(1000 + Math.random() * 2000);
-    
-    // 简单的模拟回复逻辑
-    const responses = [
-      `我理解你说的"${message}"。这是一个很有趣的话题！`,
-      `关于"${message}"，我可以为你提供一些见解...`,
-      `你提到的"${message}"让我想到了几个相关的观点。`,
-      `这是一个很好的问题关于"${message}"。让我来详细解释一下。`,
-      `我注意到你对"${message}"很感兴趣。这确实是一个值得探讨的主题。`,
-    ];
-    
-    // 如果包含代码相关关键词，返回代码示例
-    if (message.toLowerCase().includes('代码') || message.toLowerCase().includes('code') || message.toLowerCase().includes('编程')) {
-      return `关于编程，这里是一个简单的例子：
-
-\`\`\`javascript
-function greet(name) {
-  return \`Hello, \${name}!\`;
-}
-
-console.log(greet('World'));
-\`\`\`
-
-这个函数演示了基本的JavaScript语法。你还有其他编程相关的问题吗？`;
-    }
-    
-    return responses[Math.floor(Math.random() * responses.length)];
+    const response = await generateAIResponse(message);
+    return response.message;
   },
   
   isConnected(): boolean {
@@ -74,7 +48,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       });
 
       // 调用AI服务
-      const aiResponse = await mockAIService.sendMessage(content);
+      const aiResponse = await aiService.sendMessage(content);
 
       // 接收AI回复
       dispatch({
