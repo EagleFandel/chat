@@ -3,20 +3,22 @@ import { useState, useEffect } from 'react';
 type Theme = 'light' | 'dark' | 'system';
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(() => {
-    // 检查是否在浏览器环境
-    if (typeof window === 'undefined') return 'light';
+  const [theme, setTheme] = useState<Theme>('light'); // 服务器端默认值
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
+  const [mounted, setMounted] = useState(false);
+
+  // 客户端挂载后设置正确的主题
+  useEffect(() => {
+    setMounted(true);
     
     // 从localStorage获取保存的主题，默认为system
     const savedTheme = localStorage.getItem('theme') as Theme;
-    return savedTheme || 'system';
-  });
-
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
+    setTheme(savedTheme || 'system');
+  }, []);
 
   useEffect(() => {
     // 检查是否在浏览器环境
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !mounted) return;
     
     const root = window.document.documentElement;
     
@@ -39,11 +41,11 @@ export function useTheme() {
     
     // 保存到localStorage
     localStorage.setItem('theme', theme);
-  }, [theme]);
+  }, [theme, mounted]);
 
   // 监听系统主题变化
   useEffect(() => {
-    if (typeof window === 'undefined' || theme !== 'system' || !window.matchMedia) return;
+    if (typeof window === 'undefined' || theme !== 'system' || !window.matchMedia || !mounted) return;
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     
@@ -58,7 +60,7 @@ export function useTheme() {
 
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
-  }, [theme]);
+  }, [theme, mounted]);
 
   const toggleTheme = () => {
     setTheme(current => {
@@ -74,6 +76,16 @@ export function useTheme() {
       }
     });
   };
+
+  // 在客户端挂载前返回默认值，避免水合错误
+  if (!mounted) {
+    return {
+      theme: 'light' as Theme,
+      resolvedTheme: 'light' as 'light' | 'dark',
+      setTheme: () => {},
+      toggleTheme: () => {},
+    };
+  }
 
   return {
     theme,

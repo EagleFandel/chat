@@ -22,15 +22,28 @@ const breakpoints: BreakpointValues = {
 
 export function useResponsive() {
   const [windowSize, setWindowSize] = useState({
-    width: typeof window !== 'undefined' ? window.innerWidth : 1024,
-    height: typeof window !== 'undefined' ? window.innerHeight : 768,
+    width: 1024, // 服务器端默认值
+    height: 768,
   });
 
   const [currentBreakpoint, setCurrentBreakpoint] = useState<Breakpoint>('lg');
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // 检查是否在浏览器环境
-    if (typeof window === 'undefined') return;
+    setMounted(true);
+    
+    // 客户端挂载后设置真实的窗口大小
+    if (typeof window !== 'undefined') {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    // 检查是否在浏览器环境且已挂载
+    if (typeof window === 'undefined' || !mounted) return;
 
     function handleResize() {
       const width = window.innerWidth;
@@ -55,7 +68,7 @@ export function useResponsive() {
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [mounted]);
 
   // 检查是否匹配特定断点
   const isBreakpoint = (breakpoint: Breakpoint) => {
